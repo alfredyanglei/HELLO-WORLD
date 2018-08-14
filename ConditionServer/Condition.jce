@@ -1,0 +1,286 @@
+#include "/home/tafjce/HQSys/LIBS/hqutils/Common.jce"
+
+module HQExtend
+{
+	enum CONDITION_RET
+    {
+        CONDITION_OK = 0,
+        CONDITION_INCOMING_ERR = -1,        //数据传入错误
+		CONDITION_FCT_NONE = -2,            //因子类型是NONE
+        CONDITION_FCT_NO_DATA = -3,            //因子匹配不到股票
+        CONDITION_INTERSECTION_NO_DATA = -4,   //结果交集为空
+        CONDITION_UNKNOWN = -99,            //未知错误  
+    };
+   
+    enum E_CONDTION_OPERATION
+    {
+        OP_OR = 0,
+        OP_AND = 1
+    };
+
+	enum E_CONDITION_TABLE
+	{
+	    QUANT_NONE = 0,
+
+		QUANT_DAY = 1,                   //查询quant_fct_value_row_d表
+		QUANT_SEASON_FRESH = 2,          //查询quant_fct_value_row_q_fresh表
+		QUANT_CALC_DAY = 3,              //查询quant_stk_calc_d表
+	};
+    
+    enum E_CONDITION_FACTOR
+    {
+        FACTOR_NONE = 0,
+
+		//因子库待开发：规则是枚举或者数据区间
+		FACTOR_MACD = 1,                 //MACD:E_FACTOR_MACD：MACD金叉、MACD顶背离、MACD底背离、MACD买入信号、MACD红二波
+		FACTOR_KDJ = 2,                  //KDJ:E_FACTOR_KDJ: KDJ金叉、KDJ超卖、KDJ顶背离、KDJ底背离、买入信号
+		FACTOR_BOLL = 3,                 //BOLL:E_FACTOR_BOLL: 突破下轨，突破中轨、突破上轨
+		FACTOR_RSI = 4,                  //RSI:E_FACTOR_RSI: RSI金叉、RSI买入信号、RSI超卖、RSI底背离
+		FACTOR_KXT = 5,                  //K线形态:E_FACTOR_KXT: MACD金叉、底部红三兵、深跌回弹、阶段新高、多方炮、量能巨变、盘整突破、小步上扬
+
+		FACTOR_ZZCBCL = 6,               //总资产报酬率7041000067--季度
+		FACTOR_ZCCJLL = 7,               //总资产净利率7041000066--季度
+		FACTOR_MGJYXJL = 8,              //每股经营现金流7045000054--季度
+		FACTOR_MGSY = 9,                 //每股收益7045000057--季度
+		FACTOR_MGJZC = 10,               //每股净资产7045000058--季度
+		FACTOR_MGWFPLR = 11,             //每股未分配利润7045000059--季度
+		FACTOR_MGZBGJ = 12,              //每股资本公积7045000060--季度
+		FACTOR_MGGL = 13,                //每股股利7045000061--季度
+		FACTOR_JZCSYL = 14,              //净资产收益率7045000062--季度
+
+		//因子库已有数据：规则是数据区间
+		FACTOR_PB = 15,                   //市净率7041000002--日
+		FACTOR_PS = 16,                   //市销率7041000003--日
+		FACTOR_PCF = 17,                  //市现率7041000004--日
+		FACTOR_LTSZ = 18,                 //流通市值7045000007--日
+		FACTOR_ZGB = 19,                  //总股本7045000035--季度
+		FACTOR_GDHS = 20,                 //股东户数7042000005--季度
+		FACTOR_HJCG = 21,                 //户均持股数7042000006--季度
+		FACTOR_MGSYZZL = 22,              //每股收益增长率7046000001--季度
+		FACTOR_XSMLL = 23,                //销售毛利率7041000015--季度
+		FACTOR_YYZSR = 24,                //营业总收入7045000032--季度
+		FACTOR_YYZSRZZL = 25,             //营业总收入增长率7046000009--季度
+		FACTOR_JLR = 26,                  //净利润7045000014--季度
+		FACTOR_JLRZZL = 27,               //净利润增长率7046000011--季度
+		FACTOR_ZCFZL = 28,                //资产负债率7041000012--季度
+
+		//行情数据(市场+行情趋势+基本面部分)：规则是枚举或者数据区间
+		FACTOR_MARKET = 29,               //市场：深市A股、创业板、中小板、沪市A股
+		FACTOR_B2S = 30,                  //行业板块、概念板块的成分股--传入对应板块的code，例如：建材板块：880016
+		FACTOR_PE = 31,                   //(市盈率7041000001--日)在行情数据类获取
+		FACTOR_ZSZ = 32,                  //(总市值7045000026--日)在行情数据类获取
+		FACTOR_CHG = 33,                  //涨跌幅
+		FACTOR_HSL = 34,                  //换手率
+		FACTOR_ZHENFU = 35,               //振幅
+		FACTOR_AMOUNT = 36,               //成交额
+		FACTOR_VOLUME = 37,               //成交量
+		FACTOR_PRICE = 38,                //股价
+		FACTOR_LIANGBI = 39,              //量比
+		FACTOR_WEIBI = 40,                //委比
+
+		//龙虎榜数据：规则是数据区间
+		FACTOR_LHB_JGJMR = 41,            //机构净买入（所有买入营业部机构专用的机构净额相加）
+		FACTOR_LHB_JGJMC = 42,            //机构净卖出：机构净额之和小于0（所有卖出营业部机构专用的机构净额相加）
+		FACTOR_LHB_YYBJMR = 43,           //营业部净买入：营业部净买入净额之和排序（从大到小）取前十
+		FACTOR_LHB_YYBJMC = 44,           //营业部净卖出：营业部净卖出净额之和排序（从大到小）取前十
+		FACTOR_LHB_MJGMR = 45,            //多家机构买入：买入营业部中机构专用户数大于等于3的股票
+		FACTOR_LHB_SBN = 46,              //近一周龙虎榜上榜次数大于等于2：某只股票连续五个交易日进入龙虎榜
+		FACTOR_LHB_MJGMC = 47,            //多家机构卖出：卖出营业部中机构专用户数大于等于3的股票
+
+		//非因子排序列
+		FACTOR_NAME = 48,               //股票名称
+		FACTOR_LASTPRICE = 49,           //最新价
+
+    };
+
+	enum E_FACTOR_MACD
+	{
+		MACD_JC = 1,          //MACD金叉
+		MACD_TBL = 2,         //MACD顶背离
+		MACD_DBL = 3,         //MACD底背离
+		MACD_BUY = 4,         //MACD买入信号
+		MACD_HEB = 5,         //MACD红二波
+	};
+
+	enum E_FACTOR_KDJ
+	{
+		KDJ_JC = 1,           //KDJ金叉
+		KDJ_SUPER_SELL = 2,   //KDJ超卖
+		KDJ_TBL = 3,          //KDJ顶背离
+		KDJ_DBL = 4,          //KDJ底背离
+		KDJ_BUY = 5,          //KDJ买入信号
+	};
+
+	enum E_FACTOR_BOLL
+	{
+		BOLL_BREAK_XG = 1,    //突破下轨
+		BOLL_BREAK_ZG = 2,    //突破中轨
+		BOLL_BREAK_SG = 3,    //突破上轨
+	};
+
+	enum E_FACTOR_RSI
+	{
+		RSI_JC = 1,           //RSI金叉
+		RSI_BUY = 2,          //RSI买入信号
+		RSI_SUPER_SELL = 3,   //RSI超卖
+		RSI_DBL = 4,          //RSI底背离
+	};
+
+	enum E_FACTOR_KXT
+	{
+		KXT_MACD_JC = 1,      //MACD金叉
+		KXT_DHSB = 2,         //底部红三兵
+		KXT_SDHT = 3,         //深跌回弹
+		KXT_JDXG = 4,         //阶段新高
+		KXT_DFP = 5,          //多方炮
+		KXT_LNJB = 6,         //量能巨变
+		KXT_PZTP = 7,         //盘整突破
+		KXT_XBSY = 8,         //小步上扬
+	};
+
+	enum E_FACTOR_MARKET
+	{
+		MARKET_SHA = 1,      //沪市A股
+		MARKET_SZA = 2,      //深市A股
+		MARKET_CY = 3,       //创业板
+		MARKET_SM = 4,       //中小板
+	};
+
+    /**
+    * 具体条件: 不同的条件选择方式不同，一个因子只能有一个方式
+    * （1）区间匹配
+    * （2）因子枚举
+	* （3）板块code
+    */
+    struct ConditionItem
+    {    
+        1 require E_CONDITION_FACTOR eFactor = FACTOR_NONE;
+        
+        //方式一：区间查找
+        2 optional double dMinValue = 0.0;
+        3 optional double dMaxValue = 0.0;
+        
+        //方式二：因子枚举, 例如MACD因子：MACD金叉、MACD顶背离、MACD底背离、MACD买入信号、MACD红二波
+        4 optional int iValue = 0;
+
+		//方式三：板块code, 主要是行业板块，概念板块 例如：建材板块：880016
+        5 optional string sCode = "";
+        
+    };
+    
+	/****************************************方式一 begin******************************************/
+    //组合条件
+    struct ConditionGroup
+    {        
+        1 optional vector<ConditionGroup> vSubCondition;
+        2 optional E_CONDTION_OPERATION eSubOp;
+        
+        3 optional ConditionItem stItem;
+         
+    };
+	
+	struct SelectedStock
+    {
+        1 optional short shtMarket;
+        2 optional string sCode;
+    };
+
+	struct SelectReq
+    {
+        1 optional ConditionGroup stCondition;
+    };
+
+	struct SelectRsp
+    {
+        1 optional vector<SelectedStock> vStock;
+    };
+	/****************************************方式一 end******************************************/
+
+
+    /****************************************方式二 begin******************************************/
+
+	//行情趋势数据
+	struct SelCondHq
+	{
+		1 optional double dPeRatio;            //市盈率
+		2 optional double dTotalMarketValue;   //总市值
+		3 optional double dChgRatio;           //涨跌幅
+		4 optional double dTurnoverRate;       //换手率
+		5 optional double dZhenfu;             //振幅
+		6 optional double dAmount;             //成交额
+		7 optional double dVolume;             //成交量
+		8 optional double dNowPrice;           //股价
+		9 optional double dLiangBi;            //量比
+		10 optional double dWeiBi;             //委比
+	};
+
+	//增加的相关数据
+	 struct SelCondHqAddition
+	 {
+		1 optional byte bTransactionStatus;     //交易状态标志：‘O’表示其它状态‘P’停牌‘C’集合竞价‘H’暂停交易‘T’连续交易‘B’午休‘E’闭市
+	 };
+
+	//股票信息
+    struct SelStockInfo
+    {
+        1 optional short shtMarket;
+        2 optional string sCode;
+        3 optional string sName;
+    };
+
+	struct SelSimpleStockPrice
+    {
+        1 optional double dPrice;
+        2 optional double dChange;       //涨跌额
+        3 optional double dChangeRate;   //涨跌幅度
+    };
+
+	struct SelStockWithPrice
+    {
+        1 optional SelStockInfo stInfo;
+        2 optional SelSimpleStockPrice stPrice;
+    };
+
+	//缓存股票行情数据结构
+	struct SelStockCondHq
+	{
+	    1 optional int iType;                     //根据type判断股票类型
+        2 optional SelStockWithPrice stStockPrice;
+		3 optional SelCondHq stCondHq;            //行情趋势数据
+		4 optional SelCondHqAddition stCondHqAddition;
+	};
+
+	//搜索到的股票数据
+    struct SelectedCondStock
+    {
+		1 optional SelStockWithPrice stStockPrice;
+		2 optional map<E_CONDITION_FACTOR, double> mFctList;
+		3 optional byte bTransactionStatus;     //交易状态标志：‘O’表示其它状态‘P’停牌‘C’集合竞价‘H’暂停交易‘T’连续交易‘B’午休‘E’闭市
+    };
+	    
+    struct SelectCondReq
+    {
+        1 optional vector<ConditionItem> vCondList;
+		2 optional E_CONDITION_FACTOR eColumn = FACTOR_NONE;   //排序的列
+        3 optional HQSys::E_SORT_METHOD eSort = HQSys::E_SORT_DEFAULT;       //升降序
+    };
+
+    struct SelectCondRsp
+    {
+        1 optional vector<SelectedCondStock> vStock;
+		2 optional E_CONDITION_FACTOR eSortFct;     //老规则下的排序因子，即第一个选股列表中显示数值的因子,此时按该因子升序排序.选股列表都不显示数值时该值为FACTOR_NONE，此时按涨跌幅降序排序.
+    };
+	/****************************************方式二 end******************************************/
+    
+    interface Condition
+    {
+        //方式1：按照嵌套方式查询        
+        int selectStock(SelectReq stReq, out SelectRsp stRsp);
+        
+		//方式2：按照组合方式查询--按该方式实现条件选股        
+        int selectCondStock(SelectCondReq stReq, out SelectCondRsp stRsp);
+
+        //方式3：类似SQL条件
+        int queryStock(string sQueryStr, out SelectRsp stRsp);
+    };
+}; 
